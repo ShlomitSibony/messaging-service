@@ -48,7 +48,7 @@ run:
 test:
 	@echo "Running tests..."
 	@echo "Starting test database if not running..."
-	@docker-compose up -d
+	@docker compose up -d
 	@echo "Waiting for database to be ready..."
 	@sleep 5
 	@echo "Running unit tests..."
