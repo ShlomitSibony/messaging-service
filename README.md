@@ -1,146 +1,402 @@
-# Backend Interview Project
+# Messaging Service
 
-This is a scaffold for Hatch's backend interview project. It includes basic setup for development, testing, and deployment.
+A production-grade unified messaging service that supports SMS, MMS, and Email messaging with conversation management, built with Go 1.24 and clean architecture principles.
 
-## Guidelines
+## 🚀 Features
 
-At Hatch, we work with several message providers to offer a unified way for our Customers to  communicate to their Contacts. Today we offer SMS, MMS, email, voice calls, and voicemail drops. Your task is to implement an HTTP service that supports the core messaging functionality of Hatch, on a much smaller scale. Specific instructions and guidelines on completing the project are below.
+- **Unified Messaging API**: Send SMS, MMS, and Email messages through a single API
+- **Conversation Management**: Automatic grouping of messages into conversations
+- **Data Persistence**: PostgreSQL database with proper indexing and constraints
+- **Webhook Support**: Handle incoming messages from external providers
+- **Error Handling**: Retry logic with exponential backoff for provider errors (500, 429)
+- **Production-Ready**: Dockerized with multi-stage builds, health checks, and security
+- **API Documentation**: Interactive Swagger/OpenAPI documentation served by the main application
+- **Clean Architecture**: Separation of concerns with dependency injection
+- **Comprehensive Testing**: Unit, integration, and API tests
+- **HTTP Error Handling**: Robust retry logic for provider errors (500, 429, etc.)
 
-### General Guidelines
 
-- You may use whatever programming language, libraries, or frameworks you'd like. 
-- We strongly encourage you to use whatever you're most familiar with so that you can showcase your skills and know-how. Candidates will not receive any kind of 'bonus points' or 'red flags' regarding their specific choices of language.
-- You are welcome to use AI, Google, StackOverflow, etc as resources while you're developing. We just ask that you understand the code very well, because we will continue developing on it during your onsite interview.
-- For ease of assessment, we strongly encourage you to use the `start.sh` script provided in the `bin/` directory, and implement it to run your service. We will run this script to start your project during our assessment. 
 
-### Project-specific guidelines
+## 🛠️ Quick Start
 
-- Assume that a provider may return HTTP error codes like 500, 429 and plan accordingly
-- Conversations consist of messages from multiple providers. Feel free to consult providers such as Twilio or Sendgrid docs when designing your solution, but all external resources should be mocked out by your project. We do not expect you to actually integrate with a third party provider as part of this project.
-- It's OK to use Google or a coding assistant to produce your code. Just make sure you know it well, because the next step will be to code additional features in this codebase with us during your full interview.
+### Prerequisites
+- Go 1.24+
+- Docker and Docker Compose
+- Make (optional, for convenience)
 
-## Requirements
+### Development Setup
 
-The service should implement:
+1. **Clone and setup:**
+   ```bash
+   git clone <repository-url>
+   cd messaging-service
+   make setup
+   ```
 
-- **Unified Messaging API**: HTTP endpoints to send and receive messages from both SMS/MMS and Email providers
-  - Support sending messages through the appropriate provider based on message type
-  - Handle incoming webhook messages from both providers
-- **Conversation Management**: Messages should be automatically grouped into conversations based on participants (from/to addresses)
-- **Data Persistence**: All conversations and messages must be stored in a relational database with proper relationships and indexing
+2. **Generate Swagger documentation:**
+   ```bash
+   make swagger
+   ```
 
-### Providers
+3. **Start the application:**
+   ```bash
+   make run
+   ```
 
-**SMS & MMS**
+4. **Access the API:**
+   - API: http://localhost:8080/api
+   - Swagger Docs: http://localhost:8080/swagger/index.html
+   - Health Check: http://localhost:8080/health
 
-**Example outbound payload to send an SMS or MMS**
+### Docker Setup
 
-```json
-{
-    "from": "from-phone-number",
-    "to": "to-phone-number",
-    "type": "mms" | "sms",
-    "body": "text message",
-    "attachments": ["attachment-url"] | [] | null,
-    "timestamp": "2024-11-01T14:00:00Z" // UTC timestamp
-}
+1. **Start the full stack (database + application):**
+   ```bash
+   make docker-up
+   ```
+
+2. **Access the application:**
+   - API: http://localhost:8080/api
+   - Swagger Docs: http://localhost:8080/swagger/index.html
+   - Health Check: http://localhost:8080/health
+
+3. **Stop the stack:**
+   ```bash
+   make docker-down
+   ```
+
+## 📚 API Documentation
+
+The API documentation is automatically generated and served by the main application:
+
+- **Swagger UI**: http://localhost:8080/swagger/index.html
+- **OpenAPI JSON**: http://localhost:8080/swagger/doc.json
+- **OpenAPI YAML**: http://localhost:8080/swagger/doc.yaml
+
+### Available Endpoints
+
+| Method | Endpoint | Description                                         |
+|--------|----------|-----------------------------------------------------|
+| `POST` | `/api/messages/message` | Send SMS/MMS message                                |
+| `POST` | `/api/messages/email` | Send email message                                  |
+| `POST` | `/api/webhooks/message` | Handle incoming SMS/MMS                             |
+| `POST` | `/api/webhooks/email` | Handle incoming email                               |
+| `GET` | `/api/conversations` | List conversations by query - query params required |
+| `GET` | `/api/conversations/:id/messages` | Get messages in conversation                        |
+| `GET` | `/health` | Health check endpoint                               |
+
+## 🗄️ Database Schema
+
+### Conversations Table
+```sql
+CREATE TABLE conversations (
+    id SERIAL PRIMARY KEY,
+    participant1 VARCHAR(255) NOT NULL,
+    participant2 VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
-**Example inbound SMS**
-
-```json
-{
-    "from": "+18045551234",
-    "to": "+12016661234",
-    "type": "sms",
-    "messaging_provider_id": "message-1",
-    "body": "text message",
-    "attachments": null,
-    "timestamp": "2024-11-01T14:00:00Z" // UTC timestamp
-}
+### Messages Table
+```sql
+CREATE TABLE messages (
+    id SERIAL PRIMARY KEY,
+    conversation_id INTEGER REFERENCES conversations(id),
+    from_address VARCHAR(255) NOT NULL,
+    to_address VARCHAR(255) NOT NULL,
+    message_type VARCHAR(10) NOT NULL,
+    body TEXT NOT NULL,
+    attachments JSONB,
+    provider_message_id VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
-**Example inbound MMS**
+## 🧪 Testing
 
-```json
-{
-    "from": "+18045551234",
-    "to": "+12016661234",
-    "type": "mms",
-    "messaging_provider_id": "message-2",
-    "body": "text message",
-    "attachments": ["attachment-url"] | [],
-    "timestamp": "2024-11-01T14:00:00Z" // UTC timestamp
-}
-```
-
-**Email Provider**
-
-**Example Inbound Email**
-
-```json
-{
-    "from": "[user@usehatchapp.com](mailto:user@usehatchapp.com)",
-    "to": "[contact@gmail.com](mailto:contact@gmail.com)",
-    "xillio_id": "message-2",
-    "body": "<html><body>html is <b>allowed</b> here </body></html>",  "attachments": ["attachment-url"] | [],
-    "timestamp": "2024-11-01T14:00:00Z" // UTC timestamp
-}
-```
-
-**Example Email Payload**
-
-```json
-{
-    "from": "[user@usehatchapp.com](mailto:user@usehatchapp.com)",
-    "to": "[contact@gmail.com](mailto:contact@gmail.com)",
-    "body": "text message with or without html",
-    "attachments": ["attachment-url"] | [],
-    "timestamp": "2024-11-01T14:00:00Z" // UTC timestamp
-}
-```
-
-### Project Structure
-
-This project structure is laid out for you already. You are welcome to move or change things, just update the Makefile, scripts, and/or docker resources accordingly. As part of the evaluation of your code, we will run 
-
-```
-.
-├── bin/                    # Scripts and executables
-│   ├── start.sh           # Application startup script
-│   └── test.sh            # API testing script with curl commands
-├── docker-compose.yml      # PostgreSQL database setup
-├── Makefile               # Build and development commands with docker-compose integration
-└── README.md              # This file
-```
-
-## Getting Started
-
-1. Clone the repository
-2. Run `make setup` to initialize the project
-3. Run `docker-compose up -d` to start the PostgreSQL database, or modify it to choose a database of your choice
-4. Run `make run` to start the application
-5. Run `make test` to run tests
-
-## Development
-
-- Use `docker-compose up -d` to start the PostgreSQL database
-- Use `make run` to start the development server
-- Use `make test` to run tests
-- Use `docker-compose down` to stop the database
-
-## Database
-
-The application uses PostgreSQL as its database. The docker-compose.yml file sets up:
-- PostgreSQL 15 with Alpine Linux
-- Database: `messaging_service`
-- User: `messaging_user`
-- Password: `messaging_password`
-- Port: `5432` (exposed to host)
-
-To connect to the database directly:
+### Run All Tests
 ```bash
-docker-compose exec postgres psql -U messaging_user -d messaging_service
+make test
 ```
 
-Again, you are welcome to make changes here, as long as they're in the docker-compose.yml
+### Run Specific Test Types
+```bash
+# Unit tests only
+go test ./internal/... -v
+
+# Integration tests only
+go test ./tests/... -v
+
+# API tests
+./bin/test.sh
+```
+
+## 🐳 Docker Commands
+
+| Command | Description |
+|---------|-------------|
+| `make docker-build` | Build Docker image |
+| `make docker-up` | Start the full stack (database + app) |
+| `make docker-down` | Stop the full stack |
+| `make docker-logs` | View logs |
+
+## ⚙️ Configuration
+
+The application uses environment variables for configuration. See `CONFIGURATION.md` for all available options.
+
+### Key Environment Variables
+```bash
+# Server Configuration
+SERVER_PORT=8080
+SERVER_READ_TIMEOUT=30s
+SERVER_WRITE_TIMEOUT=30s
+SERVER_IDLE_TIMEOUT=60s
+
+# Database Configuration
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_NAME=messaging_service
+DATABASE_USER=messaging_user
+DATABASE_PASSWORD=messaging_password
+DATABASE_MAX_OPEN_CONNS=25
+DATABASE_MAX_IDLE_CONNS=5
+DATABASE_CONN_MAX_LIFETIME=5m
+```
+
+## 🏗️ Architecture
+
+### System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Client Applications                      │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
+│  │   Web App   │  │  Mobile App │  │   External  │          │
+│  │             │  │             │  │   Services   │          │
+│  └─────────────┘  └─────────────┘  └─────────────┘          │
+└─────────────────────┬───────────────────────────────────────────┘
+                      │ HTTP/HTTPS
+                      ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Messaging Service API                       │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                    Middleware Layer                     │   │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │   │
+│  │  │ Request ID  │ │  Logging    │ │   Metrics   │     │   │
+│  │  │             │ │             │ │             │     │   │
+│  │  └─────────────┘ └─────────────┘ └─────────────┘     │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                              │                               │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                    HTTP Handlers                       │   │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │   │
+│  │  │   SMS/MMS   │ │    Email    │ │ Webhooks    │     │   │
+│  │  │   Handler   │ │   Handler   │ │   Handler   │     │   │
+│  │  └─────────────┘ └─────────────┘ └─────────────┘     │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────┬───────────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Business Logic Layer                        │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                  Service Layer                          │   │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │   │
+│  │  │ Messaging   │ │Conversation │ │ Validation  │     │   │
+│  │  │  Service    │ │  Service    │ │   Logic     │     │   │
+│  │  └─────────────┘ └─────────────┘ └─────────────┘     │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────┬───────────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Data Access Layer                           │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                 Repository Layer                        │   │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │   │
+│  │  │   Message   │ │Conversation │ │   Database  │     │   │
+│  │  │ Repository  │ │ Repository  │ │  Connection │     │   │
+│  │  └─────────────┘ └─────────────┘ └─────────────┘     │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────┬───────────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    External Services                           │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
+│  │   SMS/MMS   │  │    Email    │  │  Database   │          │
+│  │  Provider   │  │  Provider   │  │ (PostgreSQL)│          │
+│  │             │  │             │  │             │          │
+│  └─────────────┘  └─────────────┘  └─────────────┘          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Request Flow
+
+```
+1. Client Request
+   ↓
+2. Middleware Processing
+   ├── Request ID Generation
+   ├── Structured Logging
+   └── Metrics Collection
+   ↓
+3. Route Matching
+   ↓
+4. Handler Processing
+   ├── Request Validation
+   ├── Business Logic
+   └── Response Formatting
+   ↓
+5. Service Layer
+   ├── Business Rules
+   ├── Data Validation
+   └── External Calls
+   ↓
+6. Repository Layer
+   ├── Database Operations
+   └── Data Persistence
+   ↓
+7. External Providers
+   ├── SMS/MMS Delivery
+   ├── Email Delivery
+   └── Webhook Processing
+```
+
+### Data Flow Examples
+
+#### **Outbound Message Flow:**
+```
+Client → POST /api/messages/message
+  ↓
+Handler.SendSMS() → Validate Request
+  ↓
+Service.SendSMS() → Business Logic
+  ↓
+Provider.SendSMS() → External SMS Service
+  ↓
+Repository.Create() → Save to Database
+  ↓
+Response → Success/Error
+```
+
+#### **Inbound Webhook Flow:**
+```
+External Service → POST /api/webhooks/message
+  ↓
+Handler.HandleInboundSMS() → Parse Webhook
+  ↓
+Service.HandleInboundSMS() → Process Message
+  ↓
+Repository.Create() → Save to Database
+  ↓
+Response → Acknowledgment
+```
+
+## 📁 Project Structure
+
+```
+messaging-service/
+├── cmd/
+│   └── server/
+│       └── main.go              # Application entry point
+├── internal/
+│   ├── app/                     # Application lifecycle
+│   ├── config/                  # Configuration management
+│   ├── container/               # Dependency injection
+│   ├── domain/                  # Domain models and interfaces
+│   ├── handler/                 # HTTP handlers
+│   ├── logger/                  # Structured logging
+│   ├── middleware/              # HTTP middleware
+│   ├── provider/                # External service providers
+│   ├── repository/              # Data access layer
+│   ├── router/                  # HTTP routing
+│   ├── service/                 # Business logic
+│   └── telemetry/               # OpenTelemetry setup
+├── tests/                       # Integration tests
+├── docs/                        # Generated Swagger docs
+├── init.sql/                    # Database schema
+├── bin/                         # Scripts
+├── Dockerfile                   # Multi-stage Docker build
+├── docker-compose.yml           # Development environment
+├── Makefile                     # Build and deployment commands
+└── README.md                    # This file
+```
+
+## 🔧 Development Commands
+
+| Command | Description |
+|---------|-------------|
+| `make setup` | Initialize project dependencies |
+| `make run` | Start the messaging service |
+| `make test` | Run all tests |
+| `make swagger` | Generate Swagger documentation |
+| `make docs` | Generate Swagger documentation |
+| `make help` | Show all available commands |
+
+## 🚀 Production Deployment
+
+### Docker Compose (Recommended)
+```bash
+# Start production stack
+make docker-up
+
+# View logs
+make docker-logs
+
+# Stop stack
+make docker-down
+```
+
+### Manual Deployment
+```bash
+# Build the application
+go build -o messaging-service ./cmd/server
+
+# Set environment variables
+export DATABASE_HOST=your-db-host
+export DATABASE_PORT=5432
+# ... other environment variables
+
+# Run the application
+./messaging-service
+```
+
+## 📊 Monitoring
+
+### Health Check
+```bash
+curl http://localhost:8080/health
+```
+
+### Database Connection
+The application includes database connection monitoring and will log connection status on startup.
+
+## 🔒 Security
+
+- **Non-root user** in Docker containers
+- **Input validation** on all endpoints
+- **SQL injection protection** through parameterized queries
+- **Boilerplate for Authorization** through api-key Authorization header
+
+## 📊 Observability
+
+- **Request ID tracking** with `X-Request-ID` header
+- **Structured logging** with request details and timing
+- **OpenTelemetry metrics** with Prometheus exporter
+- **Request/response metrics** including duration and size
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Ensure all tests pass
+6. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the Apache 2.0 License - see the LICENSE file for details.

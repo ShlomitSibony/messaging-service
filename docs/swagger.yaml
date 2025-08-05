@@ -1,0 +1,431 @@
+basePath: /api
+definitions:
+  domain.Conversation:
+    properties:
+      business_contact:
+        type: string
+      created_at:
+        type: string
+      customer_contact:
+        type: string
+      id:
+        type: integer
+      messages:
+        items:
+          $ref: '#/definitions/domain.Message'
+        type: array
+      updated_at:
+        type: string
+    type: object
+  domain.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  domain.GetConversationMessagesResponse:
+    properties:
+      messages:
+        items:
+          $ref: '#/definitions/domain.Message'
+        type: array
+    type: object
+  domain.GetConversationsResponse:
+    properties:
+      conversations:
+        items:
+          $ref: '#/definitions/domain.Conversation'
+        type: array
+      has_more:
+        type: boolean
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  domain.InboundEmailWebhook:
+    properties:
+      attachments:
+        items:
+          type: string
+        type: array
+      body:
+        type: string
+      from:
+        type: string
+      timestamp:
+        type: string
+      to:
+        type: string
+      xillio_id:
+        type: string
+    required:
+    - body
+    - from
+    - to
+    - xillio_id
+    type: object
+  domain.InboundSMSWebhook:
+    properties:
+      attachments:
+        items:
+          type: string
+        type: array
+      body:
+        type: string
+      from:
+        type: string
+      messaging_provider_id:
+        type: string
+      timestamp:
+        type: string
+      to:
+        type: string
+      type:
+        enum:
+        - sms
+        - mms
+        type: string
+    required:
+    - body
+    - from
+    - messaging_provider_id
+    - to
+    - type
+    type: object
+  domain.Message:
+    properties:
+      attachments:
+        items:
+          type: string
+        type: array
+      body:
+        type: string
+      conversation_id:
+        type: integer
+      created_at:
+        type: string
+      error_code:
+        type: string
+      error_message:
+        type: string
+      from:
+        type: string
+      id:
+        type: integer
+      messaging_provider_id:
+        type: string
+      status:
+        type: string
+      timestamp:
+        type: string
+      to:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  domain.SendEmailRequest:
+    properties:
+      attachments:
+        items:
+          type: string
+        type: array
+      body:
+        type: string
+      from:
+        type: string
+      timestamp:
+        type: string
+      to:
+        type: string
+    required:
+    - body
+    - from
+    - to
+    type: object
+  domain.SendEmailResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  domain.SendSMSRequest:
+    properties:
+      attachments:
+        items:
+          type: string
+        type: array
+      body:
+        type: string
+      from:
+        type: string
+      timestamp:
+        type: string
+      to:
+        type: string
+      type:
+        enum:
+        - sms
+        - mms
+        type: string
+    required:
+    - body
+    - from
+    - to
+    - type
+    type: object
+  domain.SendSMSResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  domain.WebhookResponse:
+    properties:
+      message:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: A unified messaging service that supports SMS, MMS, and Email messaging
+    with conversation management.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Messaging Service API
+  version: "1.0"
+paths:
+  /conversations:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve conversations with optional filtering, search, and pagination.
+        At least one query parameter is required for performance reasons.
+      parameters:
+      - description: Filter by business email
+        in: query
+        name: business_email
+        type: string
+      - description: Filter by business phone
+        in: query
+        name: business_phone
+        type: string
+      - description: Search in customer or business contacts
+        in: query
+        name: search
+        type: string
+      - description: Filter conversations updated from date (RFC3339)
+        in: query
+        name: from
+        type: string
+      - description: Filter conversations updated to date (RFC3339)
+        in: query
+        name: to
+        type: string
+      - description: Filter by message type (sms, mms, email)
+        in: query
+        name: message_type
+        type: string
+      - description: 'Number of conversations per page (default: 50, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      - description: 'Number of conversations to skip (default: 0)'
+        in: query
+        name: offset
+        type: integer
+      - description: Sort field (id, created_at, updated_at)
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc, desc)
+        in: query
+        name: sort_order
+        type: string
+      - description: 'Include messages in response (default: false)'
+        in: query
+        name: include_messages
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.GetConversationsResponse'
+        "400":
+          description: Invalid query parameters or no query parameters provided
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+      summary: Get conversations with filtering and pagination
+      tags:
+      - conversations
+  /conversations/{id}/messages:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all messages for a specific conversation
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.GetConversationMessagesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+      summary: Get messages for a conversation
+      tags:
+      - conversations
+  /messages/email:
+    post:
+      consumes:
+      - application/json
+      description: Send an email message to a recipient
+      parameters:
+      - description: Email message details
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/domain.SendEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.SendEmailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+      summary: Send email message
+      tags:
+      - messages
+  /messages/message:
+    post:
+      consumes:
+      - application/json
+      description: Send an SMS or MMS message to a recipient
+      parameters:
+      - description: Message details
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/domain.SendSMSRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.SendSMSResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+      summary: Send message
+      tags:
+      - messages
+  /webhooks/email:
+    post:
+      consumes:
+      - application/json
+      description: Process incoming email messages from external providers
+      parameters:
+      - description: Incoming email webhook data
+        in: body
+        name: webhook
+        required: true
+        schema:
+          $ref: '#/definitions/domain.InboundEmailWebhook'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.WebhookResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+      summary: Handle incoming email webhook
+      tags:
+      - webhooks
+  /webhooks/message:
+    post:
+      consumes:
+      - application/json
+      description: Process incoming SMS and MMS messages from external providers
+      parameters:
+      - description: Incoming message webhook data
+        in: body
+        name: webhook
+        required: true
+        schema:
+          $ref: '#/definitions/domain.InboundSMSWebhook'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.WebhookResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResponse'
+      summary: Handle incoming message webhook
+      tags:
+      - webhooks
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
